@@ -3,7 +3,7 @@ import {
   getFirestore, collection, doc, onSnapshot,
   addDoc, setDoc, updateDoc, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js?v=5";
+import { firebaseConfig } from "./firebase-config.js?v=6";
 
 const app = document.getElementById("app");
 
@@ -21,6 +21,21 @@ let editingGameId = null;
 let adding = false; // "Add game" form open
 let selected = null; // { gameId, playerId } — the player whose status is being changed
 let renderPending = false;
+
+// Installable app: register the service worker and show "Install app" when the browser offers it
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+const installBtn = document.getElementById("install");
+let installPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  installPrompt = e;
+  installBtn.hidden = false;
+});
+installBtn.addEventListener("click", async () => {
+  installBtn.hidden = true;
+  await installPrompt?.prompt();
+  installPrompt = null;
+});
 
 if (firebaseConfig.apiKey.startsWith("PASTE")) {
   app.innerHTML = `<div class="card"><h2>Almost there</h2>
@@ -219,8 +234,11 @@ function gameCard(g) {
           return `<button class="chip ${key}${isSel ? " selected" : ""}" data-action="pick" data-game="${g.id}" data-player="${p.id}">${esc(p.name)}</button>`;
         }).join("")}
       </div>
-      ${key === "none" && g.date >= localDate(new Date())
-        ? `<button class="link remind" data-action="remind" data-game="${g.id}">Send reminder</button>` : ""}
+      ${key === "none" ? `
+        <div class="none-foot">
+          <span class="hint">Tap a name to change status</span>
+          ${g.date >= localDate(new Date()) ? `<button class="link" data-action="remind" data-game="${g.id}">Send reminder</button>` : ""}
+        </div>` : ""}
     </div>` : "";
 
   const sel = selected && selected.gameId === g.id && players.find((p) => p.id === selected.playerId);
@@ -250,7 +268,7 @@ function gameCard(g) {
           <div class="segmented">
             ${STATUSES.map((s) => `<button class="${s.key}" data-action="set-status" data-status="${s.key}">${s.label}</button>`).join("")}
           </div>
-        </div>` : players.length ? `<p class="hint">Tap a name to change their status.</p>` : ""}
+        </div>` : ""}
     </article>`;
 }
 
