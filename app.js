@@ -3,7 +3,7 @@ import {
   getFirestore, collection, doc, onSnapshot,
   addDoc, setDoc, updateDoc, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js?v=3";
+import { firebaseConfig } from "./firebase-config.js?v=4";
 
 const app = document.getElementById("app");
 
@@ -18,6 +18,7 @@ let players = [];
 let games = [];
 let view = "games";
 let editingGameId = null;
+let adding = false; // "Add game" form open
 let selected = null; // { gameId, playerId } — the player whose status is being changed
 let renderPending = false;
 
@@ -73,11 +74,18 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
     } else if (action === "edit-game") {
       editingGameId = game;
       render(true);
+    } else if (action === "show-add") {
+      adding = true;
+      render(true);
     } else if (action === "cancel-edit") {
       editingGameId = null;
+      adding = false;
       render(true);
     } else if (action === "delete-game") {
-      if (confirm("Delete this game?")) await deleteDoc(doc(db, "games", game));
+      if (confirm("Delete this game?")) {
+        editingGameId = null;
+        await deleteDoc(doc(db, "games", game));
+      }
     } else if (action === "delete-player") {
       const p = players.find((x) => x.id === player);
       if (confirm(`Remove ${p.name} from the team?`)) await deleteDoc(doc(db, "players", player));
@@ -97,6 +105,7 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
       app.querySelector("#add-player input").focus();
     } else if (form.id === "add-game") {
       await addDoc(gamesCol, { date: data.date, time: data.time, note: data.note.trim(), attendance: {} });
+      adding = false;
       render(true);
     } else if (form.id === "edit-game") {
       await updateDoc(doc(db, "games", editingGameId), { date: data.date, time: data.time, note: data.note.trim() });
@@ -159,89 +168,104 @@ function gamesView() {
   const past = games.filter((g) => g.date < today).sort(byDate).reverse();
 
   return `
-    <form id="add-game" class="card form-row">
-      <input type="date" name="date" required>
-      <input type="time" name="time">
-      <input name="note" placeholder="Opponent / field (optional)">
-      <button class="btn primary">Add game</button>
-    </form>
-    ${players.length ? "" : `<p class="muted">No players yet — add some on the Players tab.</p>`}
+    <div class="toolbar">
+      <h2>Upcoming</h2>
+      ${adding ? "" : `<button class="btn primary" data-action="show-add">+ Add game</button>`}
+    </div>
+    ${adding ? gameForm("add-game") : ""}
+    ${players.length ? "" : `<p class="muted">No players yet. Add them on the Players tab.</p>`}
     ${upcoming.length ? upcoming.map(gameCard).join("") : `<p class="muted">No upcoming games.</p>`}
-    ${past.length ? `<details><summary>Past games (${past.length})</summary>${past.map(gameCard).join("")}</details>` : ""}
+    ${past.length ? `<details class="past"><summary>Past games (${past.length})</summary>${past.map(gameCard).join("")}</details>` : ""}
   `;
 }
 
-function gameCard(g) {
-  if (g.id === editingGameId) {
-    return `
-      <form id="edit-game" class="card form-row">
-        <input type="date" name="date" value="${esc(g.date)}" required>
-        <input type="time" name="time" value="${esc(g.time)}">
-        <input name="note" value="${esc(g.note)}" placeholder="Opponent / field (optional)">
-        <button class="btn primary">Save</button>
+function gameForm(id, g = {}) {
+  return `
+    <form id="${id}" class="card game-form">
+      <label>Date <input type="date" name="date" value="${esc(g.date)}" required></label>
+      <label>Time <input type="time" name="time" value="${esc(g.time)}"></label>
+      <label class="wide">Opponent / field <input name="note" value="${esc(g.note)}" placeholder="e.g. vs The Anglers · Red Field"></label>
+      <div class="form-actions">
+        <button class="btn primary">${id === "add-game" ? "Add game" : "Save"}</button>
         <button type="button" class="btn" data-action="cancel-edit">Cancel</button>
-      </form>`;
-  }
+        ${id === "edit-game" ? `<button type="button" class="btn danger" data-action="delete-game" data-game="${g.id}">Delete game</button>` : ""}
+      </div>
+    </form>`;
+}
+
+function gameCard(g) {
+  if (g.id === editingGameId) return gameForm("edit-game", g);
 
   const groups = { yes: [], maybe: [], no: [], none: [] };
   players.forEach((p) => groups[g.attendance[p.id] || "none"].push(p));
 
-  const column = (key, label) => `
-    <div class="col ${key}">
-      <h3>${label} (${groups[key].length})</h3>
-      ${groups[key].map((p) => {
-        const isSel = selected && selected.gameId === g.id && selected.playerId === p.id;
-        return `<button class="chip ${isSel ? "selected" : ""}" data-action="pick" data-game="${g.id}" data-player="${p.id}">${esc(p.name)}</button>`;
-      }).join("")}
-    </div>`;
+  const group = (key, label) => groups[key].length ? `
+    <div class="group">
+      <h3><span class="dot ${key}"></span>${label}</h3>
+      <div class="chips">
+        ${groups[key].map((p) => {
+          const isSel = selected && selected.gameId === g.id && selected.playerId === p.id;
+          return `<button class="chip ${key}${isSel ? " selected" : ""}" data-action="pick" data-game="${g.id}" data-player="${p.id}">${esc(p.name)}</button>`;
+        }).join("")}
+      </div>
+    </div>` : "";
 
   const sel = selected && selected.gameId === g.id && players.find((p) => p.id === selected.playerId);
+  // Hide a street address ending in a ZIP code, e.g. "Red Field 6501 Changepoint Dr Anchorage AK 99518"
+  const note = (g.note || "").replace(/\s+\d+\s.*\d{5}(-\d{4})?$/, "");
 
   return `
-    <div class="card">
+    <article class="card game">
       <div class="game-head">
-        <div>
-          <h2>${formatDate(g.date)}${g.time ? " · " + formatTime(g.time) : ""}</h2>
-          ${g.note ? `<div class="note">${esc(g.note)}</div>` : ""}
-        </div>
-        <div class="actions">
-          <button class="btn" data-action="edit-game" data-game="${g.id}">Edit</button>
-          <button class="btn danger" data-action="delete-game" data-game="${g.id}">Delete</button>
-        </div>
+        <h2 class="when">${formatDate(g.date)}${g.time ? " · " + formatTime(g.time) : ""}</h2>
+        <button class="link" data-action="edit-game" data-game="${g.id}">Edit</button>
       </div>
-      <div class="columns">
-        ${STATUSES.map((s) => column(s.key, s.label)).join("")}
-        ${column("none", "No reply")}
-      </div>
+      ${note ? `<p class="note">${esc(note)}</p>` : ""}
+      <p class="tally">
+        <span><span class="dot yes"></span>${groups.yes.length} in</span>
+        <span><span class="dot maybe"></span>${groups.maybe.length} maybe</span>
+        <span><span class="dot no"></span>${groups.no.length} out</span>
+        <span><span class="dot none"></span>${groups.none.length} no reply</span>
+      </p>
+      ${STATUSES.map((s) => group(s.key, s.label)).join("")}
+      ${group("none", "No reply")}
       ${sel ? `
         <div class="picker">
-          <strong>${esc(sel.name)}:</strong>
-          ${STATUSES.map((s) => `<button class="btn ${s.key}" data-action="set-status" data-status="${s.key}">${s.label}</button>`).join("")}
-          <button class="btn" data-action="set-status" data-status="clear">Clear</button>
-        </div>` : `<p class="muted">Tap a name to change their status.</p>`}
-    </div>`;
+          <div class="picker-head">
+            <span class="picker-name">${esc(sel.name)}</span>
+            <button class="link" data-action="set-status" data-status="clear">Clear</button>
+          </div>
+          <div class="segmented">
+            ${STATUSES.map((s) => `<button class="${s.key}" data-action="set-status" data-status="${s.key}">${s.label}</button>`).join("")}
+          </div>
+        </div>` : players.length ? `<p class="hint">Tap a name to change their status.</p>` : ""}
+    </article>`;
 }
 
 function playersView() {
   return `
-    <form id="add-player" class="card form-row">
-      <input name="name" placeholder="Player name" required>
-      <button class="btn primary">Add player</button>
+    <div class="toolbar"><h2>Players <span class="count">${players.length}</span></h2></div>
+    <form id="add-player" class="add-player">
+      <input name="name" placeholder="Add a player" aria-label="Player name" required>
+      <button class="btn primary">Add</button>
     </form>
-    <div class="card">
-      ${players.length ? players.map((p) => `
-        <div class="player-row">
-          <input value="${esc(p.name)}" data-rename="${p.id}" aria-label="Player name">
-          <button class="btn danger" data-action="delete-player" data-player="${p.id}">Remove</button>
-        </div>`).join("") : `<p class="muted">No players yet.</p>`}
-      ${players.length ? `<p class="muted">Edit a name and tap outside the box to save.</p>` : ""}
-    </div>`;
+    ${players.length ? `
+      <div class="card list">
+        ${players.map((p) => `
+          <div class="player-row">
+            <input value="${esc(p.name)}" data-rename="${p.id}" aria-label="Player name">
+            <button class="link danger" data-action="delete-player" data-player="${p.id}">Remove</button>
+          </div>`).join("")}
+      </div>
+      <p class="hint">Edit a name and tap outside the box to save.</p>` : `<p class="muted">No players yet.</p>`}`;
 }
 
 const byDate = (a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || ""));
 
 function formatDate(d) {
-  return new Date(d + "T00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  const date = new Date(d + "T00:00");
+  const year = date.getFullYear() === new Date().getFullYear() ? undefined : "numeric";
+  return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year });
 }
 
 function formatTime(t) {
