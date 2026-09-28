@@ -15,7 +15,18 @@
       <button class="tab" data-view="players">Players</button>
     </nav>
   </header>
-  <main id="app"><p class="muted">Loading…</p></main>
-  <script type="module" src="app.js"></script>
+  <main id="app"><p class="muted loading">Loading…</p></main>
+  <script>
+    // If the app fails to start, say so instead of showing "Loading…" forever
+    window.addEventListener("error", (e) => {
+      document.getElementById("app").innerHTML = '<div class="card"><h2>Something went wrong</h2><p>' +
+        String(e.message).replace(/</g, "&lt;") + '</p><p>Try refreshing the page.</p></div>';
+    });
+    setTimeout(() => {
+      const loading = document.querySelector("#app .loading");
+      if (loading) loading.textContent = "Still loading… Try refreshing. If you use a content blocker or private browsing, turn it off for this site.";
+    }, 10000);
+  </script>
+  <script type="module" src="app.js?v=2"></script>
 </body>
 </html>
