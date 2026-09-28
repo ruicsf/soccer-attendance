@@ -28,6 +28,13 @@ Changes are saved to Firebase and show up live for everyone.
 2. Under **Source**, choose **Deploy from a branch**, select `main` and `/ (root)`, and click **Save**.
 3. After a minute or so, the site is live at `https://<your-username>.github.io/soccer-attendance/`. Share that link with the team.
 
+### 5. (Optional) Add games from the league calendar automatically
+1. In this repo, go to **Settings → Secrets and variables → Actions → New repository secret**.
+2. Name it `CALENDAR_URL`. For the value, paste the league's calendar link (it starts with `webcal://` or `https://`), then click **Add secret**.
+3. Go to the **Actions** tab, click **Sync games from league calendar**, then **Run workflow**.
+
+After that, it checks the calendar every 6 hours. New games show up in the app, and date, time, or field changes are updated. Attendance is never touched. If you delete a calendar game in the app, it comes back on the next sync.
+
 ## Notes
 
 - The Firebase `apiKey` is meant to be public in web apps, so committing it is fine. Access is controlled by the rules in step 2.
