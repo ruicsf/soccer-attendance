@@ -194,6 +194,7 @@ main { max-width: 720px; margin: 0 auto; padding: 8px 16px 40px; }
   font-size: 0.95rem;
 }
 .link.danger { color: var(--no); }
+.remind { margin-top: 8px; }
 
 input {
   width: 100%;

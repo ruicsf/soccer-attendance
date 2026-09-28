@@ -3,7 +3,7 @@ import {
   getFirestore, collection, doc, onSnapshot,
   addDoc, setDoc, updateDoc, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js?v=4";
+import { firebaseConfig } from "./firebase-config.js?v=5";
 
 const app = document.getElementById("app");
 
@@ -74,6 +74,17 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
     } else if (action === "edit-game") {
       editingGameId = game;
       render(true);
+    } else if (action === "remind") {
+      const text = reminderText(games.find((g) => g.id === game));
+      try {
+        if (navigator.share) await navigator.share({ text });
+        else {
+          await navigator.clipboard.writeText(text);
+          btn.textContent = "Copied! Paste it in your group chat.";
+        }
+      } catch (err) {
+        if (err.name !== "AbortError") prompt("Copy this reminder:", text);
+      }
     } else if (action === "show-add") {
       adding = true;
       render(true);
@@ -208,11 +219,12 @@ function gameCard(g) {
           return `<button class="chip ${key}${isSel ? " selected" : ""}" data-action="pick" data-game="${g.id}" data-player="${p.id}">${esc(p.name)}</button>`;
         }).join("")}
       </div>
+      ${key === "none" && g.date >= localDate(new Date())
+        ? `<button class="link remind" data-action="remind" data-game="${g.id}">Send reminder</button>` : ""}
     </div>` : "";
 
   const sel = selected && selected.gameId === g.id && players.find((p) => p.id === selected.playerId);
-  // Hide a street address ending in a ZIP code, e.g. "Red Field 6501 Changepoint Dr Anchorage AK 99518"
-  const note = (g.note || "").replace(/\s+\d+\s.*\d{5}(-\d{4})?$/, "");
+  const note = cleanNote(g);
 
   return `
     <article class="card game">
@@ -240,6 +252,20 @@ function gameCard(g) {
           </div>
         </div>` : players.length ? `<p class="hint">Tap a name to change their status.</p>` : ""}
     </article>`;
+}
+
+// Hide a street address ending in a ZIP code, e.g. "Red Field 6501 Changepoint Dr Anchorage AK 99518"
+function cleanNote(g) {
+  return (g.note || "").replace(/\s+\d+\s.*\d{5}(-\d{4})?$/, "");
+}
+
+function reminderText(g) {
+  const waiting = players.filter((p) => !g.attendance[p.id]).map((p) => p.name);
+  const when = formatDate(g.date) + (g.time ? " · " + formatTime(g.time) : "");
+  const note = cleanNote(g);
+  return `Reminder: please RSVP for ${when}${note ? " (" + note + ")" : ""}.\n` +
+    `Still waiting on: ${waiting.join(", ")}\n` +
+    location.origin + location.pathname;
 }
 
 function playersView() {
