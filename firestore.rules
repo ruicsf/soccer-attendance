@@ -1,0 +1,12 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Anyone with the link can view and edit players and games.
+    match /players/{id} {
+      allow read, write: if true;
+    }
+    match /games/{id} {
+      allow read, write: if true;
+    }
+  }
+}
