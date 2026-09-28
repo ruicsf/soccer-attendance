@@ -49,7 +49,8 @@ const games = events
   .map((e) => ({
     id: "cal-" + e.UID.value.replace(/[^A-Za-z0-9_-]/g, "_"),
     start: toStart(e.DTSTART),
-    note: [unescape(e.SUMMARY?.value), unescape(e.LOCATION?.value)].filter(Boolean).join(" · "),
+    // Drop the street address: "The Dome on Red Field 6501 Changepoint Drive ..." -> "The Dome on Red Field"
+    note: [unescape(e.SUMMARY?.value), unescape(e.LOCATION?.value).replace(/\s+\d+\s.*\d{5}(-\d{4})?$/, "")].filter(Boolean).join(" · "),
   }))
   .filter((g) => g.start && g.start.slice(0, 10) >= yesterday)
   .sort((a, b) => a.start.localeCompare(b.start));
