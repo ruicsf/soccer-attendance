@@ -3,7 +3,7 @@ import {
   getFirestore, collection, doc, onSnapshot,
   addDoc, setDoc, updateDoc, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js?v=6";
+import { firebaseConfig } from "./firebase-config.js?v=7";
 
 const app = document.getElementById("app");
 
@@ -279,11 +279,7 @@ function cleanNote(g) {
 
 function reminderText(g) {
   const waiting = players.filter((p) => !g.attendance[p.id]).map((p) => p.name);
-  const when = formatDate(g.date) + (g.time ? " · " + formatTime(g.time) : "");
-  const note = cleanNote(g);
-  return `Reminder: please RSVP for ${when}${note ? " (" + note + ")" : ""}.\n` +
-    `Still waiting on: ${waiting.join(", ")}\n` +
-    location.origin + location.pathname;
+  return `RSVP for ${formatDate(g.date)}: ${waiting.join(", ")}\n` + location.origin + location.pathname;
 }
 
 function playersView() {
