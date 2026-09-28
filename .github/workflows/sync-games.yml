@@ -1,0 +1,24 @@
+name: Sync games from league calendar
+
+on:
+  schedule:
+    - cron: "17 */6 * * *" # every 6 hours
+  workflow_dispatch: # "Run workflow" button on the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/fetch-games.mjs
+        env:
+          CALENDAR_URL: ${{ secrets.CALENDAR_URL }}
+      - name: Commit games.json if it changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git add games.json 2>/dev/null || exit 0
+          git diff --cached --quiet || (git commit -m "Update games from league calendar" && git push)

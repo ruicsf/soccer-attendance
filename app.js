@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore, collection, doc, onSnapshot,
-  addDoc, updateDoc, deleteDoc, deleteField
+  addDoc, setDoc, updateDoc, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js?v=2";
 
@@ -38,9 +38,11 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
     render();
   }, onError);
 
+  let synced = false;
   onSnapshot(gamesCol, (snap) => {
     games = snap.docs.map((d) => ({ id: d.id, attendance: {}, ...d.data() }));
     render();
+    if (!synced) { synced = true; syncCalendar(db); }
   }, onError);
 
   // Tabs
@@ -117,6 +119,30 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
   });
 }
 
+// Add games from the league calendar (games.json, updated by a GitHub Action).
+// Only writes date/time/note, so attendance is never touched.
+async function syncCalendar(db) {
+  let list;
+  try {
+    const res = await fetch("games.json?t=" + Date.now());
+    if (!res.ok) return;
+    list = await res.json();
+  } catch { return; }
+
+  for (const { id, start, note } of list) {
+    const date = start.length === 10 ? start : localDate(new Date(start));
+    const time = start.length === 10 ? "" : new Date(start).toTimeString().slice(0, 5);
+    const g = games.find((x) => x.id === id);
+    if (!g || g.date !== date || g.time !== time || g.note !== note) {
+      await setDoc(doc(db, "games", id), { date, time, note }, { merge: true });
+    }
+  }
+}
+
+function localDate(d) {
+  return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
 function render(force = false) {
   // Don't wipe out a text box someone is typing in
   if (!force && app.contains(document.activeElement) && document.activeElement.tagName === "INPUT") {
@@ -128,8 +154,7 @@ function render(force = false) {
 }
 
 function gamesView() {
-  const now = new Date();
-  const today = new Date(now - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const today = localDate(new Date());
   const upcoming = games.filter((g) => g.date >= today).sort(byDate);
   const past = games.filter((g) => g.date < today).sort(byDate).reverse();
 
