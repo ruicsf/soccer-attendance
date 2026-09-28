@@ -4,13 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Team Attendance</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
+  <link rel="icon" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-title" content="Attendance">
   <meta name="theme-color" content="#f5f7f5">
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <header>
-    <h1><span class="ball">⚽</span> Team Attendance</h1>
+    <div class="title-row">
+      <h1><span class="ball">⚽</span> Team Attendance</h1>
+      <button id="install" class="btn primary small" hidden>Install app</button>
+    </div>
     <nav class="tabs">
       <button class="tab active" data-view="games">Games</button>
       <button class="tab" data-view="players">Players</button>
@@ -28,6 +34,6 @@
       if (loading) loading.textContent = "Still loading… Try refreshing. If you use a content blocker or private browsing, turn it off for this site.";
     }, 10000);
   </script>
-  <script type="module" src="app.js?v=4"></script>
+  <script type="module" src="app.js?v=6"></script>
 </body>
 </html>

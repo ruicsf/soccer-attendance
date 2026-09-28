@@ -54,7 +54,8 @@ header {
   margin: 0 auto;
   padding: 18px 16px 4px;
 }
-header h1 { margin: 0 0 14px; font-size: 1.35rem; letter-spacing: -0.01em; }
+.title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; min-height: 40px; }
+header h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.01em; }
 .ball { font-size: 1.1rem; }
 
 .tabs {
@@ -184,6 +185,7 @@ main { max-width: 720px; margin: 0 auto; padding: 8px 16px 40px; }
 }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 .btn.danger { color: var(--no); margin-left: auto; }
+.btn.small { padding: 6px 12px; font-size: 0.875rem; white-space: nowrap; }
 
 .link {
   border: 0;
@@ -194,6 +196,8 @@ main { max-width: 720px; margin: 0 auto; padding: 8px 16px 40px; }
   font-size: 0.95rem;
 }
 .link.danger { color: var(--no); }
+.none-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; margin-top: 8px; }
+.none-foot .hint { margin: 0; }
 
 input {
   width: 100%;
