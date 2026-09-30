@@ -3,7 +3,7 @@ import {
   getFirestore, collection, doc, onSnapshot,
   addDoc, setDoc, updateDoc, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js?v=9";
+import { firebaseConfig } from "./firebase-config.js?v=10";
 
 const app = document.getElementById("app");
 
@@ -12,6 +12,10 @@ const STATUSES = [
   { key: "maybe", label: "Maybe" },
   { key: "no", label: "Not attending" },
 ];
+
+const POSITIONS = ["GK", "DEF", "MID", "FWD"];
+const posTag = (p) => p.positions?.length
+  ? ` <span class="pos">${POSITIONS.filter((x) => p.positions.includes(x)).join("/")}</span>` : "";
 
 // Live data from Firestore, plus a bit of UI state.
 let players = [];
@@ -126,6 +130,13 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
       saveMe("skip");
       choosingMe = false;
       render(true);
+    } else if (action === "toggle-pos") {
+      const p = players.find((x) => x.id === player);
+      const current = p.positions || [];
+      const positions = current.includes(btn.dataset.pos)
+        ? current.filter((x) => x !== btn.dataset.pos)
+        : [...current, btn.dataset.pos];
+      await updateDoc(doc(db, "players", player), { positions });
     } else if (action === "edit-game") {
       editingGameId = game;
       render(true);
@@ -338,7 +349,7 @@ function gameCard(g) {
       <div class="chips">
         ${groups[key].map((p) => {
           const isSel = selected && selected.gameId === g.id && selected.playerId === p.id;
-          return `<button class="chip ${key}${isSel ? " selected" : ""}" data-action="pick" data-game="${g.id}" data-player="${p.id}">${esc(p.name)}</button>`;
+          return `<button class="chip ${key}${isSel ? " selected" : ""}" data-action="pick" data-game="${g.id}" data-player="${p.id}">${esc(p.name)}${posTag(p)}</button>`;
         }).join("")}
       </div>
       ${key === "none" ? `
@@ -365,6 +376,7 @@ function gameCard(g) {
         <span><span class="dot no"></span>${groups.no.length} out</span>
         <span><span class="dot none"></span>${groups.none.length} no reply</span>
       </p>
+      ${positionLine(groups.yes)}
       ${STATUSES.map((s) => group(s.key, s.label)).join("")}
       ${group("none", "No reply")}
       ${sel ? `
@@ -378,6 +390,15 @@ function gameCard(g) {
           </div>
         </div>` : ""}
     </article>`;
+}
+
+// "GK 1 · DEF 2 · MID 0 · FWD 3" for players attending; a player with two positions counts in both
+function positionLine(attending) {
+  if (!players.some((p) => p.positions?.length)) return "";
+  return `<p class="positions">${POSITIONS.map((pos) => {
+    const n = attending.filter((p) => p.positions?.includes(pos)).length;
+    return `<span class="${n ? "" : "zero"}">${pos} ${n}</span>`;
+  }).join("")}</p>`;
 }
 
 // Hide a street address ending in a ZIP code, e.g. "Red Field 6501 Changepoint Dr Anchorage AK 99518"
@@ -407,11 +428,14 @@ function playersView() {
             <div class="player-main">
               <input value="${esc(p.name)}" data-rename="${p.id}" aria-label="Player name">
               ${record(p)}
+              <div class="pos-toggles">
+                ${POSITIONS.map((pos) => `<button class="pos-toggle${p.positions?.includes(pos) ? " on" : ""}" data-action="toggle-pos" data-player="${p.id}" data-pos="${pos}" aria-pressed="${!!p.positions?.includes(pos)}">${pos}</button>`).join("")}
+              </div>
             </div>
             <button class="link danger" data-action="delete-player" data-player="${p.id}">Remove</button>
           </div>`).join("")}
       </div>
-      <p class="hint">Edit a name and tap outside the box to save.</p>
+      <p class="hint">Edit a name and tap outside the box to save. Tap positions to turn them on or off.</p>
       <p class="hint">On this device you are: <strong>${myPlayer() ? esc(myPlayer().name) : "not set"}</strong>
         <button class="link" data-action="change-me">${myPlayer() ? "Change" : "Pick your name"}</button></p>` : `<p class="muted">No players yet.</p>`}`;
 }
