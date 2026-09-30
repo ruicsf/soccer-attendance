@@ -3,7 +3,7 @@ import {
   getFirestore, collection, doc, onSnapshot,
   addDoc, setDoc, updateDoc, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js?v=7";
+import { firebaseConfig } from "./firebase-config.js?v=8";
 
 const app = document.getElementById("app");
 
@@ -21,6 +21,17 @@ let editingGameId = null;
 let adding = false; // "Add game" form open
 let selected = null; // { gameId, playerId } — the player whose status is being changed
 let renderPending = false;
+
+// "Remember me": which player uses this device, saved on this device only
+const ME_KEY = "soccer-me";
+let me = null; // player id, or "skip" if they chose not to pick
+try { me = localStorage.getItem(ME_KEY); } catch {}
+let choosingMe = false; // "Who are you?" picker reopened to switch names
+function saveMe(value) {
+  me = value;
+  try { localStorage.setItem(ME_KEY, value); } catch {}
+}
+const myPlayer = () => players.find((p) => p.id === me);
 
 // Installable app: register the service worker and show "Install app" when the browser offers it
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
@@ -86,6 +97,21 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
       await updateDoc(doc(db, "games", gameId), {
         [`attendance.${playerId}`]: status === "clear" ? deleteField() : status,
       });
+    } else if (action === "my-status") {
+      await updateDoc(doc(db, "games", game), { [`attendance.${me}`]: status });
+    } else if (action === "change-me") {
+      choosingMe = true;
+      view = "games";
+      document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.view === "games"));
+      render(true);
+      window.scrollTo(0, 0);
+    } else if (action === "cancel-me") {
+      choosingMe = false;
+      render(true);
+    } else if (action === "skip-me") {
+      saveMe("skip");
+      choosingMe = false;
+      render(true);
     } else if (action === "edit-game") {
       editingGameId = game;
       render(true);
@@ -143,6 +169,10 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
   // Rename a player when their name box loses focus (or Enter is pressed)
   app.addEventListener("change", async (e) => {
     const input = e.target;
+    if (input.id === "me-select") {
+      if (input.value) { saveMe(input.value); choosingMe = false; render(true); }
+      return;
+    }
     if (!input.dataset.rename) return;
     const name = input.value.trim();
     if (name) await updateDoc(doc(db, "players", input.dataset.rename), { name });
@@ -199,10 +229,45 @@ function gamesView() {
       ${adding ? "" : `<button class="btn primary" data-action="show-add">+ Add game</button>`}
     </div>
     ${adding ? gameForm("add-game") : ""}
-    ${players.length ? "" : `<p class="muted">No players yet. Add them on the Players tab.</p>`}
+    ${players.length ? meBar() : `<p class="muted">No players yet. Add them on the Players tab.</p>`}
     ${upcoming.length ? upcoming.map(gameCard).join("") : `<p class="muted">No upcoming games.</p>`}
     ${past.length ? `<details class="past"><summary>Past games (${past.length})</summary>${past.map(gameCard).join("")}</details>` : ""}
   `;
+}
+
+// Asks "Who are you?" until this device has picked a player (or skipped)
+function meBar() {
+  if (!choosingMe && (myPlayer() || me === "skip")) return "";
+  return `
+    <div class="card me-bar">
+      <label for="me-select">Who are you?</label>
+      <select id="me-select">
+        <option value="">Pick your name</option>
+        ${players.map((p) => `<option value="${p.id}"${p.id === me ? " selected" : ""}>${esc(p.name)}</option>`).join("")}
+      </select>
+      <div class="me-foot">
+        <span class="hint">So you can reply with one tap. Saved on this device only.</span>
+        <button class="link" data-action="${choosingMe && myPlayer() ? "cancel-me" : "skip-me"}">${choosingMe && myPlayer() ? "Cancel" : "Skip"}</button>
+      </div>
+    </div>`;
+}
+
+// One-tap reply for the player using this device
+function quickRsvp(g) {
+  const p = myPlayer();
+  if (!p || g.date < localDate(new Date())) return "";
+  const mine = g.attendance[p.id];
+  const labels = { yes: "I'm in", maybe: "Maybe", no: "Out" };
+  return `
+    <div class="quick">
+      <div class="quick-head">
+        <span>${esc(p.name)}, are you in?</span>
+        <button class="link" data-action="change-me">Not ${esc(p.name)}?</button>
+      </div>
+      <div class="segmented">
+        ${STATUSES.map((s) => `<button class="${s.key}${mine === s.key ? " active" : ""}" data-action="my-status" data-game="${g.id}" data-status="${s.key}">${labels[s.key]}</button>`).join("")}
+      </div>
+    </div>`;
 }
 
 function gameForm(id, g = {}) {
@@ -251,6 +316,7 @@ function gameCard(g) {
         <button class="link" data-action="edit-game" data-game="${g.id}">Edit</button>
       </div>
       ${note ? `<p class="note">${esc(note)}</p>` : ""}
+      ${quickRsvp(g)}
       <p class="tally">
         <span><span class="dot yes"></span>${groups.yes.length} in</span>
         <span><span class="dot maybe"></span>${groups.maybe.length} maybe</span>
@@ -297,7 +363,9 @@ function playersView() {
             <button class="link danger" data-action="delete-player" data-player="${p.id}">Remove</button>
           </div>`).join("")}
       </div>
-      <p class="hint">Edit a name and tap outside the box to save.</p>` : `<p class="muted">No players yet.</p>`}`;
+      <p class="hint">Edit a name and tap outside the box to save.</p>
+      <p class="hint">On this device you are: <strong>${myPlayer() ? esc(myPlayer().name) : "not set"}</strong>
+        <button class="link" data-action="change-me">${myPlayer() ? "Change" : "Pick your name"}</button></p>` : `<p class="muted">No players yet.</p>`}`;
 }
 
 const byDate = (a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || ""));
