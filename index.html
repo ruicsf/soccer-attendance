@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-title" content="Attendance">
   <meta name="theme-color" content="#f5f7f5">
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
   <header>
@@ -23,6 +23,10 @@
     </nav>
   </header>
   <main id="app"><p class="muted loading">Loading…</p></main>
+  <div id="toast" class="toast" role="status" hidden>
+    <span id="toast-msg"></span>
+    <button id="toast-undo" class="link">Undo</button>
+  </div>
   <script>
     // If the app fails to start, say so instead of showing "Loading…" forever
     window.addEventListener("error", (e) => {
@@ -34,6 +38,6 @@
       if (loading) loading.textContent = "Still loading… Try refreshing. If you use a content blocker or private browsing, turn it off for this site.";
     }, 10000);
   </script>
-  <script type="module" src="app.js?v=8"></script>
+  <script type="module" src="app.js?v=9"></script>
 </body>
 </html>

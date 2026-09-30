@@ -3,7 +3,7 @@ import {
   getFirestore, collection, doc, onSnapshot,
   addDoc, setDoc, updateDoc, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js?v=8";
+import { firebaseConfig } from "./firebase-config.js?v=9";
 
 const app = document.getElementById("app");
 
@@ -21,6 +21,7 @@ let editingGameId = null;
 let adding = false; // "Add game" form open
 let selected = null; // { gameId, playerId } — the player whose status is being changed
 let renderPending = false;
+let pastOpen = false; // keep "Past games" open across redraws
 
 // "Remember me": which player uses this device, saved on this device only
 const ME_KEY = "soccer-me";
@@ -72,6 +73,20 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
     if (!synced) { synced = true; syncCalendar(db); }
   }, onError);
 
+  // Set a player's status for a game, with Undo
+  const STATUS_TEXT = { yes: "Attending", maybe: "Maybe", no: "Not attending" };
+  const writeStatus = (gameId, playerId, value) => updateDoc(doc(db, "games", gameId), {
+    [`attendance.${playerId}`]: value || deleteField(),
+  });
+  async function setStatus(gameId, playerId, status) {
+    const before = games.find((g) => g.id === gameId)?.attendance[playerId];
+    const after = status === "clear" ? null : status;
+    if (before === after) return;
+    await writeStatus(gameId, playerId, after);
+    const name = players.find((p) => p.id === playerId)?.name || "Player";
+    showUndo(`${name}: ${STATUS_TEXT[after] || "cleared"}`, () => writeStatus(gameId, playerId, before));
+  }
+
   // Tabs
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", () => {
@@ -94,11 +109,10 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
     } else if (action === "set-status") {
       const { gameId, playerId } = selected;
       selected = null;
-      await updateDoc(doc(db, "games", gameId), {
-        [`attendance.${playerId}`]: status === "clear" ? deleteField() : status,
-      });
+      render(true);
+      await setStatus(gameId, playerId, status);
     } else if (action === "my-status") {
-      await updateDoc(doc(db, "games", game), { [`attendance.${me}`]: status });
+      await setStatus(game, me, status);
     } else if (action === "change-me") {
       choosingMe = true;
       view = "games";
@@ -135,12 +149,18 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
       render(true);
     } else if (action === "delete-game") {
       if (confirm("Delete this game?")) {
+        const { id, ...data } = games.find((g) => g.id === game);
         editingGameId = null;
-        await deleteDoc(doc(db, "games", game));
+        await deleteDoc(doc(db, "games", id));
+        showUndo("Game deleted", () => setDoc(doc(db, "games", id), data));
       }
     } else if (action === "delete-player") {
       const p = players.find((x) => x.id === player);
-      if (confirm(`Remove ${p.name} from the team?`)) await deleteDoc(doc(db, "players", player));
+      if (confirm(`Remove ${p.name} from the team?`)) {
+        const { id, ...data } = p;
+        await deleteDoc(doc(db, "players", id));
+        showUndo(`${p.name} removed`, () => setDoc(doc(db, "players", id), data));
+      }
     }
   });
 
@@ -178,11 +198,33 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
     if (name) await updateDoc(doc(db, "players", input.dataset.rename), { name });
   });
 
+  // Remember whether "Past games" is open ("toggle" doesn't bubble, so listen in the capture phase)
+  app.addEventListener("toggle", (e) => {
+    if (e.target.matches("details.past")) pastOpen = e.target.open;
+  }, true);
+
   // If someone else's update arrived while typing, redraw once typing is done
   app.addEventListener("focusout", () => {
     setTimeout(() => { if (renderPending) render(); });
   });
 }
+
+// Short "... · Undo" message at the bottom of the screen
+const toast = document.getElementById("toast");
+let undoFn = null;
+let toastTimer = null;
+function showUndo(message, fn) {
+  document.getElementById("toast-msg").textContent = message;
+  undoFn = fn;
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.hidden = true; }, 6000);
+}
+document.getElementById("toast-undo").addEventListener("click", () => {
+  toast.hidden = true;
+  undoFn?.();
+  undoFn = null;
+});
 
 // Add games from the league calendar (games.json, updated by a GitHub Action).
 // Only writes date/time/note, so attendance is never touched.
@@ -231,7 +273,7 @@ function gamesView() {
     ${adding ? gameForm("add-game") : ""}
     ${players.length ? meBar() : `<p class="muted">No players yet. Add them on the Players tab.</p>`}
     ${upcoming.length ? upcoming.map(gameCard).join("") : `<p class="muted">No upcoming games.</p>`}
-    ${past.length ? `<details class="past"><summary>Past games (${past.length})</summary>${past.map(gameCard).join("")}</details>` : ""}
+    ${past.length ? `<details class="past"${pastOpen ? " open" : ""}><summary>Past games (${past.length})</summary>${past.map(gameCard).join("")}</details>` : ""}
   `;
 }
 
@@ -349,6 +391,9 @@ function reminderText(g) {
 }
 
 function playersView() {
+  const past = games.filter((g) => g.date < localDate(new Date()));
+  const record = (p) => past.length
+    ? `<span class="player-stat">Played ${past.filter((g) => g.attendance[p.id] === "yes").length} of ${past.length}</span>` : "";
   return `
     <div class="toolbar"><h2>Players <span class="count">${players.length}</span></h2></div>
     <form id="add-player" class="add-player">
@@ -359,7 +404,10 @@ function playersView() {
       <div class="card list">
         ${players.map((p) => `
           <div class="player-row">
-            <input value="${esc(p.name)}" data-rename="${p.id}" aria-label="Player name">
+            <div class="player-main">
+              <input value="${esc(p.name)}" data-rename="${p.id}" aria-label="Player name">
+              ${record(p)}
+            </div>
             <button class="link danger" data-action="delete-player" data-player="${p.id}">Remove</button>
           </div>`).join("")}
       </div>

@@ -15,6 +15,7 @@
   --none: #a3aca7;
   --none-bg: #eff2f0;
   --radius: 14px;
+  --toast-link: #8fe0b0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -30,6 +31,7 @@
     --no-bg: #401d1d;
     --none: #6d7771;
     --none-bg: #222a26;
+    --toast-link: #1d7a46;
     color-scheme: dark;
   }
 }
@@ -261,6 +263,30 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .player-row:last-child { border-bottom: 0; }
 .player-row input { border-color: transparent; padding-left: 0; background: transparent; }
 .player-row input:focus { border-color: var(--border); padding-left: 12px; background: var(--surface); }
+
+.player-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.player-stat { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Undo toast */
+.toast {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--text);
+  color: var(--bg);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.2);
+}
+.toast[hidden] { display: none; }
+.toast .link { color: var(--toast-link); font-weight: 600; }
 
 /* Past games */
 .past summary {
