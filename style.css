@@ -175,6 +175,32 @@ main { max-width: 720px; margin: 0 auto; padding: 8px 16px 40px; }
 .segmented .maybe { background: var(--maybe-bg); border-color: transparent; }
 .segmented .no { background: var(--no-bg); border-color: transparent; }
 
+/* Remember me */
+.me-bar { display: flex; flex-direction: column; gap: 8px; }
+.me-bar label { font-weight: 600; }
+.me-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; }
+.me-foot .hint { margin: 0; }
+select {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 9px 12px;
+  min-height: 42px;
+  font: inherit;
+}
+
+.quick { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.quick-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; font-weight: 600; }
+.quick-head .link { font-size: 0.85rem; }
+/* Only your current answer is colored */
+.quick .segmented button { background: var(--surface); border-color: var(--border); }
+.quick .segmented button.active { font-weight: 700; }
+.quick .segmented button.yes.active { background: var(--yes-bg); border-color: var(--yes); }
+.quick .segmented button.maybe.active { background: var(--maybe-bg); border-color: var(--maybe); }
+.quick .segmented button.no.active { background: var(--no-bg); border-color: var(--no); }
+
 /* Buttons and inputs */
 .btn {
   border: 1px solid var(--border);
@@ -208,7 +234,7 @@ input {
   padding: 9px 12px;
   min-height: 42px;
 }
-input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Game form */
 .game-form {
