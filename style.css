@@ -16,6 +16,7 @@
   --none-bg: #eff2f0;
   --radius: 14px;
   --toast-link: #8fe0b0;
+  --warn-text: #9a6200;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -32,6 +33,7 @@
     --none: #6d7771;
     --none-bg: #222a26;
     --toast-link: #1d7a46;
+    --warn-text: #f0b429;
     color-scheme: dark;
   }
 }
@@ -266,6 +268,32 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 
 .player-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .player-stat { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Positions */
+.pos { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.03em; color: var(--muted); margin-left: 2px; }
+.positions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.positions .zero { color: var(--warn-text); }
+.pos-toggles { display: flex; gap: 6px; margin-top: 6px; }
+.pos-toggle {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.pos-toggle.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 
 /* Undo toast */
 .toast {
