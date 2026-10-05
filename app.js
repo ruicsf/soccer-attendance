@@ -3,7 +3,7 @@ import {
   getFirestore, collection, doc, onSnapshot,
   addDoc, setDoc, updateDoc, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js?v=10";
+import { firebaseConfig } from "./firebase-config.js?v=11";
 
 const app = document.getElementById("app");
 
@@ -110,6 +110,7 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
       const same = selected && selected.gameId === game && selected.playerId === player;
       selected = same ? null : { gameId: game, playerId: player };
       render(true);
+      if (btn.classList.contains("quick-note")) app.querySelector("#player-note input")?.focus();
     } else if (action === "set-status") {
       const { gameId, playerId } = selected;
       selected = null;
@@ -190,6 +191,12 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
       await addDoc(gamesCol, { date: data.date, time: data.time, note: data.note.trim(), attendance: {} });
       adding = false;
       render(true);
+    } else if (form.id === "player-note") {
+      const { gameId, playerId } = selected;
+      const text = data.text.trim();
+      selected = null;
+      render(true);
+      await updateDoc(doc(db, "games", gameId), { [`notes.${playerId}`]: text || deleteField() });
     } else if (form.id === "edit-game") {
       await updateDoc(doc(db, "games", editingGameId), { date: data.date, time: data.time, note: data.note.trim() });
       editingGameId = null;
@@ -320,6 +327,7 @@ function quickRsvp(g) {
       <div class="segmented">
         ${STATUSES.map((s) => `<button class="${s.key}${mine === s.key ? " active" : ""}" data-action="my-status" data-game="${g.id}" data-status="${s.key}">${labels[s.key]}</button>`).join("")}
       </div>
+      <button class="link quick-note" data-action="pick" data-game="${g.id}" data-player="${p.id}">${g.notes?.[p.id] ? "Edit my note" : "Add a note"}</button>
     </div>`;
 }
 
@@ -379,6 +387,7 @@ function gameCard(g) {
       ${positionLine(groups.yes)}
       ${STATUSES.map((s) => group(s.key, s.label)).join("")}
       ${group("none", "No reply")}
+      ${notesList(g)}
       ${sel ? `
         <div class="picker">
           <div class="picker-head">
@@ -388,8 +397,21 @@ function gameCard(g) {
           <div class="segmented">
             ${STATUSES.map((s) => `<button class="${s.key}" data-action="set-status" data-status="${s.key}">${s.label}</button>`).join("")}
           </div>
+          <form id="player-note" class="note-form">
+            <input name="text" value="${esc(g.notes?.[sel.id])}" maxlength="120"
+              placeholder="Add a note, e.g. Colin is coming in my place" aria-label="Note for ${esc(sel.name)}">
+            <button class="btn small">Save note</button>
+          </form>
         </div>` : ""}
     </article>`;
+}
+
+// Players' notes for a game, e.g. "Thomas: Colin is coming in my place"
+function notesList(g) {
+  const rows = players.filter((p) => g.notes?.[p.id]);
+  if (!rows.length) return "";
+  return `<ul class="notes">${rows.map((p) =>
+    `<li><strong>${esc(p.name)}:</strong> ${esc(g.notes[p.id])}</li>`).join("")}</ul>`;
 }
 
 // "GK 1 · DEF 2 · MID 0 · FWD 3" for players attending; a player with two positions counts in both

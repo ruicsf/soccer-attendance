@@ -269,6 +269,22 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .player-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .player-stat { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 
+/* Player notes */
+.note-form { display: flex; gap: 8px; }
+.note-form .btn { flex-shrink: 0; }
+.notes {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--none-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+.quick-note { align-self: flex-start; font-size: 0.85rem; }
+
 /* Positions */
 .pos { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.03em; color: var(--muted); margin-left: 2px; }
 .positions {
