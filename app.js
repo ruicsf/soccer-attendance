@@ -3,7 +3,7 @@ import {
   getFirestore, collection, doc, onSnapshot,
   addDoc, setDoc, updateDoc, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js?v=11";
+import { firebaseConfig } from "./firebase-config.js?v=12";
 
 const app = document.getElementById("app");
 
@@ -399,14 +399,14 @@ function gameCard(g) {
           </div>
           <form id="player-note" class="note-form">
             <input name="text" value="${esc(g.notes?.[sel.id])}" maxlength="120"
-              placeholder="Add a note, e.g. Colin is coming in my place" aria-label="Note for ${esc(sel.name)}">
+              placeholder="Add a note, e.g. sending a sub, running late" aria-label="Note for ${esc(sel.name)}">
             <button class="btn small">Save note</button>
           </form>
         </div>` : ""}
     </article>`;
 }
 
-// Players' notes for a game, e.g. "Thomas: Colin is coming in my place"
+// Players' notes for a game, e.g. "Thomas: sending a sub"
 function notesList(g) {
   const rows = players.filter((p) => g.notes?.[p.id]);
   if (!rows.length) return "";
