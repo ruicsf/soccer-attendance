@@ -44,6 +44,12 @@ function toStart({ value }) {
 
 const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 
+// Summary for the Actions log, to tell "calendar has no new games" apart from "games were skipped"
+const starts = events.map((e) => e.DTSTART && toStart(e.DTSTART)).filter(Boolean).sort();
+console.log(`Calendar has ${events.length} events` +
+  (starts.length ? `, dated ${starts[0].slice(0, 10)} to ${starts.at(-1).slice(0, 10)}` : "") +
+  `. Raw start values look like: ${[...new Set(events.slice(-3).map((e) => e.DTSTART?.value))].join(", ")}`);
+
 const games = events
   .filter((e) => e.UID && e.DTSTART && e.STATUS?.value !== "CANCELLED")
   .map((e) => ({
