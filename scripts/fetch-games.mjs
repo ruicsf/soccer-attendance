@@ -8,8 +8,10 @@ if (!source) {
   process.exit(0);
 }
 
-const text = source.startsWith("http")
-  ? await (await fetch(source)).text()
+// Ask for a fresh copy: the feed has served an old cached schedule before
+const fresh = source.startsWith("http") && source + (source.includes("?") ? "&" : "?") + "nocache=" + Date.now();
+const text = fresh
+  ? await (await fetch(fresh, { headers: { "Cache-Control": "no-cache", Pragma: "no-cache" } })).text()
   : readFileSync(source, "utf8"); // local file, for testing
 
 if (!text.includes("BEGIN:VCALENDAR")) {
