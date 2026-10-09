@@ -3,7 +3,7 @@ import {
   getFirestore, collection, doc, onSnapshot,
   addDoc, setDoc, updateDoc, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js?v=12";
+import { firebaseConfig } from "./firebase-config.js?v=13";
 
 const app = document.getElementById("app");
 
@@ -435,8 +435,14 @@ function reminderText(g) {
 
 function playersView() {
   const past = games.filter((g) => g.date < localDate(new Date()));
-  const record = (p) => past.length
-    ? `<span class="player-stat">Played ${past.filter((g) => g.attendance[p.id] === "yes").length} of ${past.length}</span>` : "";
+  // Count from the first past game the player responded to, so new players don't start at "0 of 5"
+  const record = (p) => {
+    const answered = past.filter((g) => g.attendance[p.id]).map((g) => g.date).sort();
+    if (!answered.length) return "";
+    const counted = past.filter((g) => g.date >= answered[0]);
+    const played = counted.filter((g) => g.attendance[p.id] === "yes").length;
+    return `<span class="player-stat">Played ${played} of ${counted.length}</span>`;
+  };
   return `
     <div class="toolbar"><h2>Players <span class="count">${players.length}</span></h2></div>
     <form id="add-player" class="add-player">
