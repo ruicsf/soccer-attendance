@@ -35,6 +35,8 @@ Changes are saved to Firebase and show up live for everyone.
 
 After that, it checks the calendar every 6 hours. New games show up in the app, and date, time, or field changes are updated. Attendance is never touched. If you delete a calendar game in the app, it comes back on the next sync.
 
+If the league calendar is missing games, list them in `manual-games.json` (same format as `games.json`). The app adds them the same way, and the sync never overwrites that file.
+
 ## Notes
 
 - The Firebase `apiKey` is meant to be public in web apps, so committing it is fine. Access is controlled by the rules in step 2.

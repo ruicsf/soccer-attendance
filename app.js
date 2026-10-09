@@ -3,7 +3,7 @@ import {
   getFirestore, collection, doc, onSnapshot,
   addDoc, setDoc, updateDoc, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js?v=13";
+import { firebaseConfig } from "./firebase-config.js?v=14";
 
 const app = document.getElementById("app");
 
@@ -244,15 +244,14 @@ document.getElementById("toast-undo").addEventListener("click", () => {
   undoFn = null;
 });
 
-// Add games from the league calendar (games.json, updated by a GitHub Action).
+// Add games from the league calendar (games.json, updated by a GitHub Action)
+// and from manual-games.json (games typed in by hand; the Action never touches it).
 // Only writes date/time/note, so attendance is never touched.
 async function syncCalendar(db) {
-  let list;
-  try {
-    const res = await fetch("games.json?t=" + Date.now());
-    if (!res.ok) return;
-    list = await res.json();
-  } catch { return; }
+  const load = (file) => fetch(file + "?t=" + Date.now())
+    .then((res) => (res.ok ? res.json() : []))
+    .catch(() => []);
+  const list = (await Promise.all([load("games.json"), load("manual-games.json")])).flat();
 
   for (const { id, start, note } of list) {
     const date = start.length === 10 ? start : localDate(new Date(start));
