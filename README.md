@@ -1,4 +1,4 @@
-# ⚽ Team Attendance
+# ⚽ Bulldog RSVP
 
 A simple page for tracking who's coming to each week's game. Anyone with the link can:
 

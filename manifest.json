@@ -1,6 +1,6 @@
 {
-  "name": "Team Attendance",
-  "short_name": "Attendance",
+  "name": "Bulldog RSVP",
+  "short_name": "Bulldog RSVP",
   "description": "Who's coming to each week's game",
   "start_url": "./",
   "scope": "./",
