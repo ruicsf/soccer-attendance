@@ -3,7 +3,7 @@ import {
   getFirestore, collection, doc, onSnapshot,
   addDoc, setDoc, updateDoc, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js?v=14";
+import { firebaseConfig } from "./firebase-config.js?v=15";
 
 const app = document.getElementById("app");
 
@@ -253,14 +253,44 @@ async function syncCalendar(db) {
     .catch(() => []);
   const list = (await Promise.all([load("games.json"), load("manual-games.json")])).flat();
 
+  const isCalendar = (id) => id.startsWith("cal-");
+  const dateOf = (start) => (start.length === 10 ? start : localDate(new Date(start)));
+  // Days that already have a game added by hand (in the app or in manual-games.json)
+  const handDays = new Set([
+    ...games.filter((g) => !isCalendar(g.id)).map((g) => g.date),
+    ...list.filter((g) => !isCalendar(g.id)).map((g) => dateOf(g.start)),
+  ]);
+
   for (const { id, start, note } of list) {
-    const date = start.length === 10 ? start : localDate(new Date(start));
+    const date = dateOf(start);
     const time = start.length === 10 ? "" : new Date(start).toTimeString().slice(0, 5);
     const g = games.find((x) => x.id === id);
+
+    // A calendar game on a day that already has a hand-added game is a duplicate:
+    // move any RSVPs and notes onto the hand-added game, then drop the calendar copy.
+    if (isCalendar(id) && handDays.has(date)) {
+      const keep = games.find((x) => !isCalendar(x.id) && x.date === date);
+      if (g && keep) await mergeInto(db, g, keep);
+      continue;
+    }
     if (!g || g.date !== date || g.time !== time || g.note !== note) {
       await setDoc(doc(db, "games", id), { date, time, note }, { merge: true });
     }
   }
+}
+
+// Copy answers and notes from a duplicate game onto the one we keep (without
+// overwriting answers already there), then delete the duplicate.
+async function mergeInto(db, dup, keep) {
+  const changes = {};
+  for (const [pid, status] of Object.entries(dup.attendance || {})) {
+    if (!keep.attendance?.[pid]) changes[`attendance.${pid}`] = status;
+  }
+  for (const [pid, text] of Object.entries(dup.notes || {})) {
+    if (!keep.notes?.[pid]) changes[`notes.${pid}`] = text;
+  }
+  if (Object.keys(changes).length) await updateDoc(doc(db, "games", keep.id), changes);
+  await deleteDoc(doc(db, "games", dup.id));
 }
 
 function localDate(d) {
