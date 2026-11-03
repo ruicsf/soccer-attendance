@@ -3,7 +3,7 @@ import {
   getFirestore, collection, doc, onSnapshot,
   addDoc, setDoc, updateDoc, deleteDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js?v=15";
+import { firebaseConfig } from "./firebase-config.js?v=16";
 
 const app = document.getElementById("app");
 
@@ -74,6 +74,7 @@ if (firebaseConfig.apiKey.startsWith("PASTE")) {
   onSnapshot(gamesCol, (snap) => {
     games = snap.docs.map((d) => ({ id: d.id, attendance: {}, ...d.data() }));
     render();
+    removeDuplicates(db);
     if (!synced) { synced = true; syncCalendar(db); }
   }, onError);
 
@@ -253,7 +254,6 @@ async function syncCalendar(db) {
     .catch(() => []);
   const list = (await Promise.all([load("games.json"), load("manual-games.json")])).flat();
 
-  const isCalendar = (id) => id.startsWith("cal-");
   const dateOf = (start) => (start.length === 10 ? start : localDate(new Date(start)));
   // Days that already have a game added by hand (in the app or in manual-games.json)
   const handDays = new Set([
@@ -266,16 +266,25 @@ async function syncCalendar(db) {
     const time = start.length === 10 ? "" : new Date(start).toTimeString().slice(0, 5);
     const g = games.find((x) => x.id === id);
 
-    // A calendar game on a day that already has a hand-added game is a duplicate:
-    // move any RSVPs and notes onto the hand-added game, then drop the calendar copy.
-    if (isCalendar(id) && handDays.has(date)) {
-      const keep = games.find((x) => !isCalendar(x.id) && x.date === date);
-      if (g && keep) await mergeInto(db, g, keep);
-      continue;
-    }
+    // A calendar game on a day that already has a hand-added game is a duplicate: skip it
+    if (isCalendar(id) && handDays.has(date)) continue;
     if (!g || g.date !== date || g.time !== time || g.note !== note) {
       await setDoc(doc(db, "games", id), { date, time, note }, { merge: true });
     }
+  }
+}
+
+const isCalendar = (id) => id.startsWith("cal-");
+
+// A calendar game on the same day as a hand-added game is a duplicate (an older
+// copy of the app may have re-added it). Runs on every update so they never stick.
+const merging = new Set();
+function removeDuplicates(db) {
+  for (const dup of games.filter((g) => isCalendar(g.id) && !merging.has(g.id))) {
+    const keep = games.find((x) => !isCalendar(x.id) && x.date === dup.date);
+    if (!keep) continue;
+    merging.add(dup.id);
+    mergeInto(db, dup, keep).finally(() => merging.delete(dup.id));
   }
 }
 

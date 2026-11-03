@@ -61,5 +61,14 @@ const games = events
   .filter((g) => g.start && g.start.slice(0, 10) >= yesterday)
   .sort((a, b) => a.start.localeCompare(b.start));
 
-writeFileSync("games.json", JSON.stringify(games, null, 2) + "\n");
-console.log(`Saved ${games.length} upcoming games to games.json`);
+// Leave out days that already have a hand-added game (manual-games.json), so no
+// copy of the app can add the calendar version as a duplicate
+let manualDays = new Set();
+try {
+  manualDays = new Set(JSON.parse(readFileSync("manual-games.json", "utf8")).map((g) => g.start.slice(0, 10)));
+} catch {}
+const kept = games.filter((g) => !manualDays.has(g.start.slice(0, 10)));
+if (kept.length < games.length) console.log(`Skipped ${games.length - kept.length} games already in manual-games.json`);
+
+writeFileSync("games.json", JSON.stringify(kept, null, 2) + "\n");
+console.log(`Saved ${kept.length} upcoming games to games.json`);
